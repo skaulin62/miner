@@ -38,7 +38,7 @@ const createField = (size, countMines) => {
 function App() {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isStart, setIStart] = useState(false);
-  const [countMines, setCountMines] = useState(50);
+  const [countMines, setCountMines] = useState(20);
   const [bet, setBet] = useState(1);
   const size = 10;
   const [field, setField] = useState(createField(size, countMines));
