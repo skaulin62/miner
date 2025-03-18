@@ -1,9 +1,19 @@
 .main {
   width: auto;
   display: flex;
+  height: 508px;
   gap: 50px;
+  position: relative;
 }
 
+.wrapper {
+  height: 100vh;
+  width: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
 .settings {
   user-select: none;
   display: flex;
@@ -28,6 +38,13 @@
   border: none;
   font-weight: 700;
   font-size: 14px;
+}
+.settings input:focus {
+  outline: 1px solid rgb(223, 243, 44);
+}
+
+.error {
+  outline: 1px solid red;
 }
 .settings input::placeholder {
   font-weight: 300;
@@ -109,4 +126,11 @@
 }
 .tileBomb::after {
   content: "💣";
+}
+
+.connectBtn {
+  position: absolute;
+  z-index: 1;
+  top: 30px;
+  right: 0;
 }

@@ -3,7 +3,8 @@ import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import styles from "./app.module.scss";
 import cn from "classnames";
-import Web3 from "web3";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import toast, { Toaster } from "react-hot-toast";
 
 const createField = (size, countMines) => {
   const field = new Array(100).fill(0);
@@ -38,20 +39,37 @@ const createField = (size, countMines) => {
 function App() {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isStart, setIStart] = useState(false);
-  const [countMines, setCountMines] = useState(15);
+  const [countMines, setCountMines] = useState(20);
   const [bet, setBet] = useState(1);
   const size = 10;
-  const [field, setField] = useState(createField(size, countMines));
-  const [ethWallet, setEthWallet] = useState(null);
-  const [userAcc, setUserAcc] = useState(null);
-  const [connectError, setConnectError] = useState(null);
-  const [loggedIn, setLoggedIn] = useState(false);
-  // 0 - filled, 1 - checked, 2 - flagged, -1 bomb
+  const [field, setField] = useState([]);
+
   const [mask, setMask] = useState(new Array(100).fill(0));
 
+  const checkWin = () => {
+    const countChecked = mask.filter((value) => value === 1).length;
+
+    if (countChecked == size ** 2 - countMines) return true;
+    return false;
+  };
+
+  const startGame = () => {
+    if (countMines >= 50 || countMines < 20)
+      return toast.error("mines range: 20 - 50");
+
+    if (isStart) return;
+    if (isGameOver) setIsGameOver(false);
+    setMask(() => new Array(100).fill(0));
+    setIStart(true);
+    setField(createField(size, countMines));
+  };
+
   const clickMine = (x, y) => {
-    if (isGameOver) return;
+    if (!isStart) return;
     if (mask[x * size + y] === 1 || mask[x * size + y] === 2) return;
+
+    if (isGameOver) return;
+
     if (field[x * size + y] === -1) {
       setMask(() =>
         mask.map((value, n) => {
@@ -62,12 +80,13 @@ function App() {
       );
       setIsGameOver(true);
       setTimeout(() => {
-        return alert("you lost");
+        return toast("You lost, loser(", { icon: "😭" });
       }, 100);
+      setField([]);
+
+      setIStart(false);
       return;
     }
-
-    const win = () => {};
 
     setMask(() =>
       mask.map((value, n) => {
@@ -104,11 +123,21 @@ function App() {
         })
       );
     }
+    if (checkWin()) {
+      setTimeout(() => {
+        return toast.success("You won!!!!!!!!!!!!!!!!!!!");
+      }, 100);
+      setIStart(false);
+      setField([]);
+      setMask(new Array(100).fill(0));
+      return;
+    }
   };
 
   const flagged = (e, x, y) => {
     e.preventDefault();
-
+    if (!isStart) return;
+    if (isGameOver) return;
     if (mask[x * size + y] === 1) return;
 
     setMask(() =>
@@ -124,147 +153,79 @@ function App() {
       })
     );
   };
-  async function connectWallet() {
-    const chainId = 10143; //
-
-    if (window.ethereum.networkVersion !== chainId) {
-      try {
-        await window.ethereum.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: web3.utils.toHex(chainId) }],
-        });
-      } catch (err) {
-        // This error code indicates that the chain has not been added to MetaMask
-        if (err.code === 4902) {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainName: "Monad testntet",
-                chainId: web3.utils.toHex(chainId),
-                nativeCurrency: {
-                  name: "MONC",
-                  decimals: 18,
-                  symbol: "MON",
-                },
-                rpcUrls: ["https://testnet-rpc.monad.xyz/"],
-              },
-            ],
-          });
-        }
-      }
-    } else return;
-
-    try {
-      // If MetaMask is not installed, throw error.
-      if (!ethWallet) {
-        const errMsg = "Please install MetaMask first";
-        setConnectError(errMsg);
-        return;
-      }
-
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-      await setLoggedIn(true);
-
-      // Reset error
-      if (connectError !== null) {
-        setConnectError(null);
-      }
-
-      window.location.reload(false);
-      return;
-    } catch (error) {
-      setConnectError(error.message);
-      console.error(error);
-      return;
-    }
-  }
-
-  async function checkWalletConnection() {
-    const ethereum = window.ethereum;
-    await setEthWallet(!ethereum ? false : true);
-
-    // If installed, get user's accounts.
-    if (ethereum) {
-      const web3Instance = new Web3(window.ethereum);
-
-      const userAcc = await web3Instance.eth.requestAccounts();
-
-      if (userAcc.length > 0) {
-        await setUserAcc(userAcc[0]);
-        await setLoggedIn(true);
-      } else {
-        if (loggedIn) {
-          await setUserAcc(null);
-          await setLoggedIn(false);
-        }
-      }
-    }
-  }
-
-  useEffect(() => {
-    if (ethWallet === null) {
-      checkWalletConnection();
-    }
-  }, [ethWallet]);
 
   return (
     <>
-      <button onClick={connectWallet}>COnnect wallet && {userAcc}</button>
-      <div className={styles.main}>
-        <div className={styles.settings}>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <label>Bet</label>
-            <input
-              value={countMines}
-              onChange={(e) => setCountMines(e.target.value)}
-              placeholder="amount mon"
-              type="number"
-            />
-            <label>Mines</label>
-            <input
-              value={bet}
-              onChange={(e) => setBet(e.target.value)}
-              placeholder="count mines"
-              type="number"
-            />
-          </div>
-          <button>Play</button>
+      <div className={styles.wrapper}>
+        <Toaster
+          position="left-top"
+          containerStyle={{ position: "absolute" }}
+          reverseOrder={false}
+        />
+        <div className={styles.connectBtn}>
+          <ConnectButton />
         </div>
-        <div className={styles.wrapBoard}>
-          {[...Array(size)].map((_, y) => {
-            return (
-              <div key={y} className={styles.boardLine}>
-                {[...Array(size)].map((_, x) => {
-                  return (
-                    <div
-                      onContextMenu={(e) => flagged(e, x, y)}
-                      onClick={() => clickMine(x, y)}
-                      key={x}
-                      className={cn(
-                        styles.tile,
-                        {
-                          [styles.tileChecked]: mask[x * size + y] === 1,
-                        },
-                        {
-                          [styles.tileFlagged]: mask[x * size + y] === 2,
-                        },
-                        {
-                          [styles.tileBomb]: mask[x * size + y] === -1,
-                        }
-                      )}
-                    >
-                      {mask[x * size + y] === 1
-                        ? field[x * size + y] > 0
-                          ? field[x * size + y]
-                          : ""
-                        : ""}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+        <div className={styles.main}>
+          <div className={styles.settings}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <label>Bet</label>
+              <input
+                disabled={isStart}
+                value={bet}
+                onChange={(e) => setBet(e.target.value)}
+                placeholder="amount mon"
+                type="number"
+              />
+              <label>Mines</label>
+              <input
+                disabled={isStart}
+                value={countMines}
+                onChange={(e) => setCountMines(e.target.value)}
+                placeholder="count mines"
+                type="number"
+              />
+              <div>mines range: 20 - 50</div>
+            </div>
+
+            <button disabled={isStart} onClick={startGame}>
+              Play
+            </button>
+          </div>
+          <div className={styles.wrapBoard}>
+            {[...Array(size)].map((_, y) => {
+              return (
+                <div key={y} className={styles.boardLine}>
+                  {[...Array(size)].map((_, x) => {
+                    return (
+                      <div
+                        onContextMenu={(e) => flagged(e, x, y)}
+                        onClick={() => clickMine(x, y)}
+                        key={x}
+                        className={cn(
+                          styles.tile,
+                          {
+                            [styles.tileChecked]: mask[x * size + y] === 1,
+                          },
+                          {
+                            [styles.tileFlagged]: mask[x * size + y] === 2,
+                          },
+                          {
+                            [styles.tileBomb]: mask[x * size + y] === -1,
+                          }
+                        )}
+                      >
+                        {mask[x * size + y] === 1
+                          ? field[x * size + y] > 0
+                            ? field[x * size + y]
+                            : ""
+                          : ""}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </>
